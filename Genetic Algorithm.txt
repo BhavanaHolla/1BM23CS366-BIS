@@ -1,0 +1,128 @@
+import numpy as np
+import random
+
+
+stock_size = 100
+demand = {20: 5, 30: 3, 50: 7}  
+
+population_size = 50
+num_generations = 200
+mutation_rate = 0.1
+tournament_size = 5
+
+piece_sizes = list(demand.keys())
+
+
+all_pieces = []
+for size, count in demand.items():
+    all_pieces.extend([size] * count)
+
+
+
+def fitness(solution):
+    return len(solution)  
+
+def is_valid_roll(roll):
+    return sum(roll) <= stock_size
+
+def generate_individual():
+    pieces = all_pieces.copy()
+    random.shuffle(pieces)
+    rolls = []
+
+    while pieces:
+        roll = []
+        remaining = stock_size
+        i = 0
+        while i < len(pieces):
+            if pieces[i] <= remaining:
+                roll.append(pieces[i])
+                remaining -= pieces[i]
+                pieces.pop(i)
+            else:
+                i += 1
+        rolls.append(roll)
+    return rolls
+
+def generate_initial_population():
+    return [generate_individual() for _ in range(population_size)]
+
+def crossover(parent1, parent2):
+    cut = random.randint(1, min(len(parent1), len(parent2)) - 1)
+    child1 = parent1[:cut] + parent2[cut:]
+    child2 = parent2[:cut] + parent1[cut:]
+    return child1, child2
+
+def mutate(solution):
+    if len(solution) < 2:
+        return solution
+
+    roll1_idx, roll2_idx = random.sample(range(len(solution)), 2)
+    if not solution[roll1_idx] or not solution[roll2_idx]:
+        return solution
+
+    piece1 = random.choice(solution[roll1_idx])
+    piece2 = random.choice(solution[roll2_idx])
+
+
+    r1 = solution[roll1_idx].copy()
+    r2 = solution[roll2_idx].copy()
+
+    r1.remove(piece1)
+    r2.remove(piece2)
+    r1.append(piece2)
+    r2.append(piece1)
+
+    if is_valid_roll(r1) and is_valid_roll(r2):
+        solution[roll1_idx] = r1
+        solution[roll2_idx] = r2
+
+    return solution
+
+def tournament_selection(population):
+    tournament = random.sample(population, tournament_size)
+    return min(tournament, key=fitness)
+
+
+
+def genetic_algorithm():
+    population = generate_initial_population()
+
+    for generation in range(num_generations):
+        new_population = []
+
+        for _ in range(population_size // 2):
+            parent1 = tournament_selection(population)
+            parent2 = tournament_selection(population)
+
+            child1, child2 = crossover(parent1, parent2)
+
+            if random.random() < mutation_rate:
+                child1 = mutate(child1)
+            if random.random() < mutation_rate:
+                child2 = mutate(child2)
+
+            new_population.extend([child1, child2])
+
+        population = new_population
+
+    best_solution = min(population, key=fitness)
+    return best_solution
+
+best_solution = genetic_algorithm()
+print("Best solution (cuts per roll):")
+for i, roll in enumerate(best_solution):
+    print(f"Roll {i+1}: {roll} (Used: {sum(roll)}/{stock_size})")
+
+print(f"Total stock rolls used: {len(best_solution)}")
+
+
+output : 
+Best solution (cuts per roll):
+Roll 1: [50, 20, 20] (Used: 90/100)
+Roll 2: [20, 20, 50] (Used: 90/100)
+Roll 3: [50, 50] (Used: 100/100)
+Roll 4: [50, 50] (Used: 100/100)
+Roll 5: [20, 20, 50] (Used: 90/100)
+Roll 6: [50] (Used: 50/100)
+Total stock rolls used: 6
